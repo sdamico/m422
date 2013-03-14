@@ -1,11 +1,10 @@
-scaleA = 100.
-
-
 import numpy as np
 from window import *
 import pylab as py
 import spectralpeaks as spk
 import mdct
+
+SCALEA = 100.0
 
 def SPL(intensity):
     """
@@ -295,8 +294,8 @@ def CalcSMRs(data, MDCTdata, MDCTscale, sampleRate, sfBands):
     sumofmasks=np.array(quietthresintens) #masks are added to threshold of quiet
     for ii in range(len(maskerarray)): #addition of all the masks
         tempmask=maskerarray[ii]
-        sumofmasks=sumofmasks+np.power(tempmask.vIntensityAtBark(zvec),scaleA)
-    sumofmasks = np.power(sumofmasks,1./scaleA)
+        sumofmasks=sumofmasks+np.power(tempmask.vIntensityAtBark(zvec),SCALEA)
+    sumofmasks = np.power(sumofmasks,1./SCALEA)
     maskthres=SPL(sumofmasks)
 
     #####do MDCT lines correspond to half frequency away?
@@ -376,8 +375,8 @@ def Maskingcurve(data, freq, sampleRate):
     sumofmasks=np.array(quietthresintens) #masks are added to threshold of quiet
     for ii in range(len(maskerarray)): #addition of all the masks
         tempmask=maskerarray[ii]
-        sumofmasks=sumofmasks+np.power(tempmask.vIntensityAtBark(zvec),scaleA)
-    sumofmasks = np.power(sumofmasks,1./scaleA)
+        sumofmasks=sumofmasks+np.power(tempmask.vIntensityAtBark(zvec),SCALEA)
+    sumofmasks = np.power(sumofmasks,1./SCALEA)
     maskthres=SPL(sumofmasks)
 
     return maskthres
@@ -440,8 +439,8 @@ def SpreadSignalEnergy(data, THR, freqs, sampleRate):
     sumofmasks=np.array(quietthresintens) #masks are added to threshold of quiet
     for ii in range(len(maskerarray)): #addition of all the masks
         tempmask=maskerarray[ii]
-        sumofmasks=sumofmasks+np.power(tempmask.vIntensityAtBark(zvec),scaleA)
-    sumofmasks = np.power(sumofmasks,1./scaleA)
+        sumofmasks=sumofmasks+np.power(tempmask.vIntensityAtBark(zvec),SCALEA)
+    sumofmasks = np.power(sumofmasks,1./SCALEA)
     maskthres=SPL(sumofmasks)
 
     return maskthres # TO REPLACE WITH YOUR CODE
