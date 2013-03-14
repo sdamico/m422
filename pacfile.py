@@ -122,6 +122,7 @@ class PACFile(AudioFile):
     def __init__(self, filename, training=False):
         AudioFile.__init__(self, filename)
         self.training = training
+        self.remainder = 0
 
     def ReadFileHeader(self):
         """
@@ -233,7 +234,6 @@ class PACFile(AudioFile):
         Writes the PAC file header for a just-opened PAC file and uses codingParams
         attributes for the header data.  File pointer ends at start of data portion.
         """
-        self.remainder = 0
         self.huffman_training = huffman.HuffmanTrainer()
         # write a header tag
         self.fp.write(self.tag)
@@ -267,7 +267,6 @@ class PACFile(AudioFile):
         """
         Writes a block of signed-fraction data to a PACFile object that has
         already executed OpenForWriting()"""
-
         # combine this block of multi-channel data w/ the prior block's to prepare for MDCTs twice as long
         fullBlockData=[]
         for iCh in range(codingParams.nChannels):
@@ -275,8 +274,7 @@ class PACFile(AudioFile):
         codingParams.priorBlock = data  # current pass's data is next pass's prior block data
         codingParams.hBand=16  ###################set hBand to max
         # (ENCODE HERE) Encode the full block of multi=channel data
-        (scaleFactor,bitAlloc,mantissa, overallScaleFactor, self.remainder,codingParams) = self.Encode(fullBlockData,codingParams, self.remainder)  # returns a tuple with all the block-specific info not in the file header
-        bitBudget = codingParams.targetBitsPerSample*codingParams.nMDCTLines*2
+        (scaleFactor,bitAlloc,mantissa, overallScaleFactor, self.remainder, bitBudget, codingParams) = self.Encode(fullBlockData,codingParams, self.remainder)  # returns a tuple with all the block-specific info not in the file header
         # for each channel, write the data to the output file
         for iCh in range(codingParams.nChannels):
             pb = PackedBits()

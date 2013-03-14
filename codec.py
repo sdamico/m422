@@ -161,8 +161,11 @@ def EncodeStereo(data,codingParams,remainder):
     maxMantBits = 16
 
     bitAlloc,remainder = BitAlloc(bitBudget*2 + remainder, maxMantBits, 2*len(nLines), np.concatenate([nLines,nLines]), np.concatenate([SMR1,SMR2]))
+    usedBits = (np.sum(bitAlloc*np.concatenate([nLines,nLines])) +
+            codingParams.hBand*2 +
+            codingParams.nScaleBits*(codingParams.sfBands.nBands+1)*2 +
+            codingParams.nMantSizeBits*codingParams.sfBands.nBands*2)
 
-    usedBits = np.sum(bitAlloc*np.concatenate([nLines,nLines]))
     bitAlloc = np.reshape(bitAlloc,[2,len(bitAlloc)/2])
 
     # compute scale factor
@@ -182,7 +185,8 @@ def EncodeStereo(data,codingParams,remainder):
             mantissa[1][scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)] = vMantissa(ch2[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)],scaleFactor[1][iBand],codingParams.nScaleBits,bitAlloc[1][iBand])
     overallScaleFactor = 0
 
-    return (scaleFactor,bitAlloc,mantissa,overallScaleFactor,remainder,codingParams)
+    return (scaleFactor,bitAlloc,mantissa,overallScaleFactor,remainder,
+            usedBits,codingParams)
 
 def dotProd(a,b): return np.sum(a*b)
 

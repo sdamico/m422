@@ -1,6 +1,6 @@
 import numpy as np
 
-SMR_THRESHOLD = -12
+SMR_THRESHOLD = -6
 
 # Question 1.b)
 def BitAllocUniform(bitBudget, maxMantBits, nBands, nLines, SMR):
@@ -67,6 +67,7 @@ def BitAlloc(bitBudget, maxMantBits, nBands, nLines, SMR):
     SMR[np.isneginf(SMR)] = -5000
 
     bands_filled = np.zeros(nBands, dtype=bool)
+    min_smr = min(SMR)
     #orig_bits = bitBudget
     for allocation_pass in range(2):
         while bitBudget > 0 and (np.min(bands_filled) == False):
@@ -76,7 +77,8 @@ def BitAlloc(bitBudget, maxMantBits, nBands, nLines, SMR):
                 bitBudget -= nLines[band_index]
                 SMR[band_index] -= 6.0
                 bit_alloc[band_index]+=1
-                if bit_alloc[band_index] == maxMantBits or SMR[band_index] < np.min(SMR)+SMR_THRESHOLD:
+                if bit_alloc[band_index] == maxMantBits or (SMR[band_index] <
+                        min_smr+SMR_THRESHOLD):
                     bands_filled[band_index] = True
             else:
                 bands_filled[band_index] = True
