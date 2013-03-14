@@ -195,8 +195,6 @@ class PACFile(AudioFile):
             ##############################this will work if hBand is set to maximum
             ####may need to add hband information
 
-            theta=pb.ReadBits(8)# get out theta information
-            codingParams.theta=theta
             hBand=pb.ReadBits(5)
             codingParams.hBand=hBand
 
@@ -281,34 +279,10 @@ class PACFile(AudioFile):
         bitBudget = codingParams.targetBitsPerSample*codingParams.nMDCTLines*2
         # for each channel, write the data to the output file
         for iCh in range(codingParams.nChannels):
-            #self.huffman_training.trainBlock(mantissa[iCh], codingParams.sfBands, codingParams, bitAlloc[iCh])
-
-            # determine the size of this channel's data block and write it to the output file
-            nBytes =codingParams.nScaleBits  # bits for overall scale factor
-            for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to get its bits
-                nBytes += codingParams.nMantSizeBits+codingParams.nScaleBits    # mantissa bit allocation and scale factor for that sf band
-                if bitAlloc[iCh][iBand]:
-                    # if non-zero bit allocation for this band, add in bits for scale factor and each mantissa (0 bits means zero)
-                    nBytes += bitAlloc[iCh][iBand]*codingParams.sfBands.nLines[iBand]  # no bit alloc = 1 so actuall alloc is one higher
-            # end computing bits needed for this channel's data
-
-
-            # CUSTOM DATA:
-            # < now can add space for custom data, if desired>
-
-            ################################################Our custom data add in lr, may need to fix later, because only need one for every two channels. For instance, add if statement of whether iCh=0 and only do it for the first channel
-            #for iBand in range(lrBits): #loop over each scale factor to get get bits on lr. Will need to change 23 to hBand eventually
-            nBytes += len(codingParams.lr)   #each element in lr should be only 1 bit, 1 or 0 dpendding on whether it is l or r. Thus the number of bits used for this would be the lenth of codingParams.lr
-
-            nBytes += 8  # adding 8 bits for the theta
-
-            nBytes += 5  # adding 5 bits for hBand
-            ################################################
             pb = PackedBits()
             pb.Size(1)
             for iBand in range(codingParams.hBand):
                 pb.WriteBits(int(codingParams.lr[iBand]),1)
-            pb.WriteBits(int(codingParams.theta),8) #write in the theta
             pb.WriteBits(int(codingParams.hBand),5)
 
 
@@ -321,16 +295,14 @@ class PACFile(AudioFile):
 
             self.fp.write(pack("<L",int(pb.nBytes))) # stores size as a little-endian unsigned long
 
-
-
             # finally, write the data in this channel's PackedBits object to the output file
             self.fp.write(pb.GetPackedData())
 
         if bitBudget < 0 and self.training:
-              self.huffman_training.trainBlock(mantissa[0].astype(int), codingParams.sfBands,
-                     codingParams, bitAlloc[0])
-              self.huffman_training.trainBlock(mantissa[1].astype(int), codingParams.sfBands,
-                     codingParams, bitAlloc[1])
+            self.huffman_training.trainBlock(mantissa[0].astype(int), codingParams.sfBands,
+                   codingParams, bitAlloc[0])
+            self.huffman_training.trainBlock(mantissa[1].astype(int), codingParams.sfBands,
+                   codingParams, bitAlloc[1])
 
         self.remainder += max(0, bitBudget)
 

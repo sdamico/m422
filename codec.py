@@ -28,17 +28,15 @@ def DecodeStereo(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     rescaleLevel = 1.*float(1<<overallScaleFactor)
     halfN = codingParams.nMDCTLines
     N = 2*halfN
-    # vectorizing the Dequantize function call
-    # vDequantize = np.vectorize(Dequantize)
+
     mylines=psy.AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLines, codingParams.sampleRate)
 
     # reconstitute the first halfN MDCT lines of this channel from the stored data
     PreMDCTLine = np.zeros((2,halfN),dtype=np.float64)
-    #iMant = 0
     iMant=0
     # extract coded values
     for ii in range(2):
-        iMant=0 ###########edit 03122013. Should start over for each channel
+        iMant=0
         for iBand in range(codingParams.sfBands.nBands):
             nLines=mylines[iBand]
             if bitAlloc[ii][iBand]:
@@ -48,12 +46,6 @@ def DecodeStereo(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     iMant = 0
     MDCTLines1=np.zeros(codingParams.nMDCTLines)
     MDCTLines2=np.zeros(codingParams.nMDCTLines)
-
-
-    """plt.figure()
-    plt.plot(mantissa[0],'g')
-    plt.show()"""
-
 
     for iBand in range(codingParams.sfBands.nBands):
         nLines = codingParams.sfBands.nLines[iBand]
@@ -65,12 +57,6 @@ def DecodeStereo(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
             MDCTLines1[iMant:(iMant+nLines)]= (PreMDCTLine[0][iMant:(iMant+nLines)])
             MDCTLines2[iMant:(iMant+nLines)]= (PreMDCTLine[1][iMant:(iMant+nLines)])
 
-        # decode upper frequencies
-        #else:
-            #data = MCRtoMDCT(PreMDCTLine[0][iMant:(iMant+nLines)],codingParams.theta)
-            #MDCTLines1[iMant:(iMant+nLines)] = PreMDCTLine[0][iMant:iMant+nLines]
-            #MDCTLines2[iMant:(iMant+nLines)] = PreMDCTLine[1][iMant:iMant+nLines]
-
         iMant += nLines
 
     # IMDCT and window the data for this channel
@@ -79,10 +65,6 @@ def DecodeStereo(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     data1 = wn.SineWindow( IMDCT(MDCTLines1, halfN, halfN) )  # takes in halfN MDCT coeffs
     data2 = wn.SineWindow( IMDCT(MDCTLines2, halfN, halfN) )  # takes in halfN MDCT coeffs
     data = (data1,data2)
-
-    #freqs = np.float_((np.arange(codingParams.nMDCTLines)+.5)*codingParams.sampleRate)/np.float(codingParams.nMDCTLines*2)  # MDCT frequency lines. Changed by JL 031713, believe should be doubled nMDCTLines
-    #py.semilogx(freqs,MDCTLines1)
-    #py.show()
 
     # end loop over channels, return reconstituted time samples (pre-overlap-and-add)
     return data
@@ -101,20 +83,11 @@ def EncodeStereo(data,codingParams,remainder):
     lMDCT = MDCT(wn.SineWindow(data[0]),nsamp,nsamp)
     rMDCT = MDCT(wn.SineWindow(data[1]),nsamp,nsamp)
 
-    # compute upper-freqency data and theta
-        # lMDCT, rMDCT: MDCT data from left and right channels
-        # hBand: smallest "upper frequency" critical band index
-        # nThetaBits: number of bits allocated to expressing "theta" uniformly between 0 and 2pi
-    codingParams.nThetaBits = 8
-    (upperFreqData, theta) = MDCTtoMCR(lMDCT[scaleFactorBands.lowerLine[codingParams.hBand]:],rMDCT[scaleFactorBands.lowerLine[codingParams.hBand]:],codingParams.nThetaBits)
-    codingParams.theta = theta
-    #ch1[scaleFactorBands.lowerLine[codingParams.hBand+1]:len(lMDCT)]=np.zeros(len(upperFreqData))#just set those guys to zero
-
     #  generate masker SPL for frequencies specified
-        # data: time domain samples
-        # fft: windowed FFT function
-        # freqs: frequencies lines desired for the mask values (Hz)
-        # codingParams.sampleRate: sampling frequency (Hz)
+    # data: time domain samples
+    # fft: windowed FFT function
+    # freqs: frequencies lines desired for the mask values (Hz)
+    # codingParams.sampleRate: sampling frequency (Hz)
     freqs = np.float_((np.arange(codingParams.nMDCTLines)+.5)*codingParams.sampleRate)/np.float(codingParams.nMDCTLines*2)  # MDCT frequency lines
     lMask = psy.Maskingcurve(data[0], freqs, codingParams.sampleRate)
     rMask = psy.Maskingcurve(data[1], freqs, codingParams.sampleRate)
@@ -135,27 +108,21 @@ def EncodeStereo(data,codingParams,remainder):
 
     codingParams.lr = lr
 
-    #data,theta = MDCTtoMCR(lMDCT[scaleFactorBands.lowerLine[codingParams.hBand+1]:],rMDCT[scaleFactorBands.lowerLine[codingParams.hBand+1]:],codingParams.nThetaBits)
-    codingParams.theta = theta
-    #ch1[scaleFactorBands.lowerLine[codingParams.hBand+1]:] = data
-    #ch1[scaleFactorBands.lowerLine[codingParams.hBand+1]:] = lMDCT[scaleFactorBands.lowerLine[codingParams.hBand+1]:]
-    #ch2[scaleFactorBands.lowerLine[codingParams.hBand+1]:] = rMDCT[scaleFactorBands.lowerLine[codingParams.hBand+1]:]
-
     # compute THRm, THRs, and MLDm, MLD (if applicable)
     mMask = np.zeros(len(nLines))
     sMask = np.zeros(len(nLines))
     if np.sum(lr)-len(lr)<0: # (if any lr is 0)
         THRm =psy.Maskingcurve((lMDCT + rMDCT)/2., freqs, codingParams.sampleRate)
         THRs =psy.Maskingcurve((lMDCT-rMDCT)/2., freqs, codingParams.sampleRate)
-        #
+
         SSSm = psy.SpreadSignalEnergy((lMDCT + rMDCT)/2., THRm, freqs, codingParams.sampleRate)
         SSSs = psy.SpreadSignalEnergy((lMDCT - rMDCT)/2., THRs, freqs, codingParams.sampleRate)
-        #
+
         MLDF = psy.spreadsignalfactor(freqs)
         MLDm = SSSm+MLDF
-        #
+
         MLDs = SSSs+MLDF
-        #
+
         mMask = np.maximum(THRm, np.minimum(THRs,MLDs))
         sMask = np.maximum(THRs, np.minimum(THRm,MLDm))
 
@@ -164,7 +131,6 @@ def EncodeStereo(data,codingParams,remainder):
     totalMask2 = np.zeros(len(lMDCT))
     for iBand in np.arange(len(nLines)):
         if iBand >= codingParams.hBand or lr[iBand]==1:
-            #totalMask1[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)] = np.maximum(lMask[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)],rMask[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)])
             totalMask1[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)] = lMask[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)]
             totalMask2[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)] = rMask[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)]
         else:
@@ -181,6 +147,7 @@ def EncodeStereo(data,codingParams,remainder):
     SMR2 = np.zeros(len(nLines))
     llim = scaleFactorBands.lowerLine
     ulim = scaleFactorBands.upperLine
+
     for ii in range(scaleFactorBands.nBands):
         idxlower=llim[ii]
         idxhigh=ulim[ii]
@@ -188,17 +155,16 @@ def EncodeStereo(data,codingParams,remainder):
         SMR2[ii]=np.max(preSMR2[idxlower:idxhigh+1])
 
     # allocate bits (altogether, before dividing the bit allocation scheme into 2 channels)
-    bitBudget = codingParams.targetBitsPerSample*nsamp-(codingParams.nThetaBits+codingParams.hBand) #double the channels
-    bitBudget -= codingParams.nScaleBits*(codingParams.sfBands.nBands +1)
+    bitBudget = codingParams.targetBitsPerSample*nsamp-codingParams.hBand
+    bitBudget -= codingParams.nScaleBits*(codingParams.sfBands.nBands+1)
     bitBudget -= codingParams.nMantSizeBits*codingParams.sfBands.nBands
     maxMantBits = 16
 
     bitAlloc,remainder = BitAlloc(bitBudget*2 + remainder, maxMantBits, 2*len(nLines), np.concatenate([nLines,nLines]), np.concatenate([SMR1,SMR2]))
-    #bitAllocSingle = BitAllocUniform(bitBudget, maxMantBits, len(nLines), np.concatenate([nLines]), np.concatenate([SMR2]))
-    #bitAlloc = np.concatenate([bitAllocSingle, bitAllocSingle])
-    #remainder = 0
+
     usedBits = np.sum(bitAlloc*np.concatenate([nLines,nLines]))
     bitAlloc = np.reshape(bitAlloc,[2,len(bitAlloc)/2])
+
     # compute scale factor
     scaleFactor = np.zeros((2,len(nLines)))
     for iBand in np.arange(len(nLines)):
@@ -208,6 +174,7 @@ def EncodeStereo(data,codingParams,remainder):
         else:
             scaleFactor[0][iBand] = (ScaleFactor(np.max(np.abs(ch1[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)])),codingParams.nScaleBits,bitAlloc[0][iBand]))
             scaleFactor[1][iBand] = (ScaleFactor(np.max(np.abs(ch2[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)])),codingParams.nScaleBits,bitAlloc[1][iBand]))
+
     # compute mantissa
     mantissa = np.zeros((2,len(lMDCT)))
     for iBand in np.arange(len(nLines)):
@@ -218,47 +185,6 @@ def EncodeStereo(data,codingParams,remainder):
     return (scaleFactor,bitAlloc,mantissa,overallScaleFactor,remainder,codingParams)
 
 def dotProd(a,b): return np.sum(a*b)
-
-def MDCTtoMCR(lData,rData,nBits):
-
-    # compute theta
-    value = (dotProd(lData,lData)-dotProd(rData,rData))/dotProd(lData,rData)
-    if np.isnan(value):
-        a = (dotProd(lData,lData) - dotProd(rData,rData))>0
-        b = dotProd(lData,rData)>0
-        if a^b: theta = np.pi/2
-        else: theta = -np.pi/2
-    else: theta = 0.5*np.arctan((dotProd(lData,lData)-dotProd(rData,rData))/dotProd(lData,rData))
-
-    if dotProd(lData,rData) < 0:
-        if theta >=0: theta = theta - np.pi/2.
-        else: theta = theta + np.pi/2.
-    theta = 2.*np.pi*DequantizeUniform(QuantizeUniform(np.mod(theta,2.*np.pi)/(2.*np.pi),nBits),nBits)
-
-    # transformational matrix
-    mTransform = np.matrix(((np.cos(theta),np.sin(theta)),(-np.sin(theta),np.cos(theta))))
-
-    # data matrix
-    mData = np.matrix((lData,rData))
-
-    # transform data
-    rotatedData = mTransform * mData
-
-    # compute average
-    data = 0.25*np.sqrt(2.*(np.square(rotatedData[0])+np.square(rotatedData[1])))
-
-    return (np.array(data),theta)
-
-def MCRtoMDCT(data,theta):
-
-    # transformational matrix
-    mTransform = np.matrix(((np.cos(theta),-np.sin(theta)),(np.sin(theta),np.cos(theta))))
-
-    # data matrix
-    data = MDCTfromSPL(2.*SPLfromMDCT(data))
-    mData = np.matrix((data,data))
-
-    return mTransform * mData
 
 def SPLfromMDCT(data):
         N = 2*len(data)

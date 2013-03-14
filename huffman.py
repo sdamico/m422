@@ -201,8 +201,6 @@ class Huffman:
         if ba: ba-=1
         bitstream.WriteBits(ba, codingParams.nMantSizeBits)
         bitstream.WriteBits(scaleFactor[iBand], codingParams.nScaleBits)
-        #bitstream.WriteBits(REGION_BIGVALUE, REGION_BITS)
-        #bitstream.WriteBits(cur_table, TABLE_ID_BITS)
         if bitAlloc[iBand]:
           for j in range(0, sfBands.nLines[iBand], 2):
             mantissas = np.array([mantissa[iMant+j], 0])
@@ -274,7 +272,6 @@ class Huffman:
         cur_table = bitstream.ReadBits(TABLE_ID_BITS)
 
 
-      #print iBand, count1_region, zero_region
       if region == REGION_BIGVALUE:
         ba = bitstream.ReadBits(codingParams.nMantSizeBits)
         if ba: ba+=1  # no bit allocation of 1 so ba of 2 and up stored as one less
@@ -284,8 +281,6 @@ class Huffman:
         if ba: ba+=1
         bitAlloc.append(ba)
       scaleFactor.append(bitstream.ReadBits(codingParams.nScaleBits))  # scale factor for this band
-
-      #cur_table = bitstream.ReadBits(TABLE_ID_BITS)
 
       if bitAlloc[iBand]:
         # if bits allocated, extract those mantissas and put in correct location in matnissa array

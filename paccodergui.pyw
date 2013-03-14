@@ -1,9 +1,11 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
+
+
 """
 A simple user interface for the Music 422 PAC Coder
 
 -----------------------------------------------------------------------
-© 2009 Marina Bosi & Richard E. Goldberg -- All rights reserved
+(C) 2009 Marina Bosi & Richard E. Goldberg -- All rights reserved
 -----------------------------------------------------------------------
 """
 
