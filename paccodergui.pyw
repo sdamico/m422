@@ -26,6 +26,7 @@ class MyFrame(wx.Frame):
         self.GetInputFilename = wx.Button(self.notebook_1_pane_1, -1, "...")
         self.label_9 = wx.StaticText(self.notebook_1_pane_1, -1, "Append to create output file name")
         self.outFileAppend = wx.TextCtrl(self.notebook_1_pane_1, -1, "_decoded_2.9bps")
+        self.trainCheck = wx.CheckBox(self.notebook_1_pane_1, -1, "Train Huffman Coding?")
         self.goButton = wx.Button(self.notebook_1_pane_1, -1, "Go")
         self.label_7 = wx.StaticText(self.notebook_1_pane_1, -1, "Encode Progress")
         self.encodeGauge = wx.Gauge(self.notebook_1_pane_1, -1, 100)
@@ -63,7 +64,9 @@ class MyFrame(wx.Frame):
         sizer_3.Add(sizer_4, 0, wx.EXPAND, 0)
         sizer_5.Add(self.label_9, 0, 0, 0)
         sizer_5.Add(self.outFileAppend, 0, wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 0)
+        sizer_6 = wx.BoxSizer(wx.VERTICAL)
         sizer_3.Add(sizer_5, 0, wx.EXPAND, 0)
+        sizer_3.Add(self.trainCheck, 0, wx.EXPAND, 0)
         sizer_3.Add(self.goButton, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 0)
         sizer_2.Add(sizer_3, 0, wx.EXPAND, 0)
         sizer_2.Add(self.label_7, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 0)
@@ -151,7 +154,7 @@ class MyFrame(wx.Frame):
                 # create the audio file objects
                 if Direction == "Encode":
                     inFile= PCMFile(inFilename)
-                    outFile = PACFile(codeFilename)
+                    outFile = PACFile(codeFilename, training=self.trainCheck.GetValue())
                 else: # "Decode"
                     inFile = PACFile(codeFilename)
                     outFile= PCMFile(outFilename)
@@ -198,6 +201,10 @@ class MyFrame(wx.Frame):
                 inFile.Close(codingParams)
                 outFile.Close(codingParams)
                 gauge.SetValue(100)
+
+                # Only encode if we're training
+                if self.trainCheck.GetValue():
+                    break
             # end of loop over Encode/Decode
 
             # we're done - give user GUI control and tell them we're done
