@@ -1,6 +1,6 @@
 import numpy as np
 
-SMR_THRESHOLD = -6
+SMR_THRESHOLD = -12
 
 # Question 1.b)
 def BitAllocUniform(bitBudget, maxMantBits, nBands, nLines, SMR):
