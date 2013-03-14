@@ -107,12 +107,7 @@ class Masker:
         spr=spr1*mask1+spr2*mask2+spr3*mask3
         finalspl=(self.mspl-delta)+spr
         finalintensity=Intensity(finalspl)
-        return finalintensity # TO REPLACE WITH YOUR CODE
-
-
-
-
-
+        return finalintensity
 
 
 class SpreadEnergy:
@@ -179,12 +174,6 @@ class SpreadEnergy:
         finalspl=(self.mspl-delta)+spr
         finalintensity=Intensity(finalspl)
         return finalintensity # TO REPLACE WITH YOUR CODE
-
-
-
-
-
-
 
 
 # Default data for 25 scale factor bands based on the traditional 25 critical bands
@@ -380,6 +369,7 @@ def Maskingcurve(data, freq, sampleRate):
     maskthres=SPL(sumofmasks)
 
     return maskthres
+    
 
 def SpreadSignalEnergy(data, THR, freqs, sampleRate):
     """
@@ -458,9 +448,6 @@ def spreadsignalfactor(freq):
         fin[ii]=x[idx[ii]]
     fin=np.interp(Bark(freq),z,x)
     return fin
-
-
-
 
 #-----------------------------------------------------------------------------
 
