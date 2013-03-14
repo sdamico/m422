@@ -16,6 +16,10 @@ LINBITS_SIZE_BITS = 4
 
 # Inspired by this: http://en.literateprograms.org/index.php?title=Special:DownloadCode/Huffman_coding_(Python)&oldid=15672
 def buildTree(probabilities_symbol_list):
+  """Build a huffman tree given a list of symbols and probabilities.
+  Inspired by this:
+  http://en.literateprograms.org/index.php?title=Special:DownloadCode/
+  Huffman_coding_(Python)&oldid=15672"""
   queue = list(probabilities_symbol_list)
   heapq.heapify(queue)
   while len(queue) > 1:
@@ -30,6 +34,8 @@ def saveTree(tree, filename):
     printTree(tree, fp)
 
 def printTree(tree, fp, prefix=''):
+  """Output Huffman tree to file."""
+
   if len(tree) == 2:
     fp.write('%i,%s\n' %(tree[1], prefix))
   else:
@@ -37,17 +43,34 @@ def printTree(tree, fp, prefix=''):
     printTree(tree[2], fp, prefix + '1')
 
 def symbolBigValue(mantissas, bitAlloc):
+  """Helper Function to look up the symbol for a big value mantissa"""
+
   mantissas_abs = mantissas & ~(1 << (bitAlloc-1))
   mantissas_capped = np.minimum(mantissas_abs, BIGVALUE_MAX)
   symbol = (mantissas_capped[1] << BIGVALUE_MAX_BITS) + mantissas_capped[0]
   return symbol
 
 def symbolCount1(mantissas):
+  """Helper Function to look up the symbol for a count1 mantissa"""
+
   mantissas_abs = np.minimum(mantissas.astype(int) & 1, 1)
   symbol = (mantissas_abs[3]<<3) + (mantissas_abs[2]<<2) + (mantissas_abs[1]<<1) + mantissas_abs[0]
   return symbol
 
+def loadTable(filename):
+  """Helper function to load a huffman table from a CSV."""
+
+  table = {}
+  with open(filename, 'rb') as f:
+    reader = csv.reader(f, delimiter=',')
+    for row in reader:
+      table[int(row[0])] = (int(row[1],2), len(row[1]))
+  return table
+
+
 class HuffmanTrainer:
+  """Class that performs huffman coding training."""
+
   def __init__(self):
     self.symbol_counts_bigvalue = {}
     self.symbol_counts_count1 = {}
@@ -110,13 +133,6 @@ class HuffmanTrainer:
           self.total_symbols_count1 += 1
       iMant = iMant + sfBands.nLines[iBand]
 
-def loadTable(filename):
-  table = {}
-  with open(filename, 'rb') as f:
-    reader = csv.reader(f, delimiter=',')
-    for row in reader:
-      table[int(row[0])] = (int(row[1],2), len(row[1]))
-  return table
 
 class Huffman:
   def __init__(self):
@@ -129,7 +145,10 @@ class Huffman:
         bigvalue_filenames.append(f)
       elif "count1" in f:
         count1_filenames.append(f)
-        
+
+    bigvalue_filenames.sort()
+    count1_filenames.sort()
+
     self.tables_bigvalue = [loadTable(f) for f in bigvalue_filenames]
     self.reverse_tables_count1 = []
     for table in self.tables_bigvalue:
@@ -141,8 +160,6 @@ class Huffman:
     self.bits_saved = 0
 
   def encodeMantissas(self, pb, mantissa, scaleFactor, sfBands, codingParams, bitAlloc, overallScaleFactor):
-    #print scaleFactor, bitAlloc, overallScaleFactor
-    #print mantissa
     iMant = 0
     max_bigvalue = 0
     count1_region = 0
@@ -165,16 +182,6 @@ class Huffman:
     linbits = 0
     if max_bigvalue > BIGVALUE_MAX:
       linbits = int(np.ceil(np.log2(max_bigvalue - BIGVALUE_MAX)))
-    """plt.figure()
-    plt.plot(mantissas, 'r')
-    plt.plot(mantissas_unsigned, 'g')
-    print bitAlloc
-    plt.plot(sfBands.lowerLine, np.maximum((1 << (bitAlloc-1)),0))
-    print np.array(mantissas)
-    print np.array(mantissas_unsigned)
-    print len(mantissas), len(mantissas_unsigned)
-    print sum(sfBands.nLines[bitAlloc > 0])
-    plt.show()"""
     bits_to_allocate = 0
 
     # Get bit allocation for big value region
@@ -220,8 +227,6 @@ class Huffman:
         if ba: ba=1
         bitstream.WriteBits(ba, 1) #codingParams.nMantSizeBits)
         bitstream.WriteBits(scaleFactor[iBand], codingParams.nScaleBits)
-        # TODO: DEAL WITH THIS
-        #bitstream.WriteBits(cur_table, TABLE_ID_BITS)
         if bitAlloc[iBand]:
           for j in range(0, sfBands.nLines[iBand], 4):
             mantissas = np.array([mantissa[iMant+j], 0])
@@ -243,14 +248,6 @@ class Huffman:
     if best_bitstream_count1 == None:
       bitstream = best_bitstream
 
-    """
-    for iBand in range(zero_region, sfBands.nBands):
-      ba = bitAlloc[iBand]
-      if ba: ba-=1
-      bitstream.WriteBits(ba, codingParams.nMantSizeBits)
-      #bitstream.WriteBits(scaleFactor[iBand], codingParams.nScaleBits)
-      bitstream.WriteBits(REGION_ZERO, REGION_BITS)
-    """
     return bitstream
 
   def decodeMantissas(self, bitstream, codingParams):
@@ -295,10 +292,8 @@ class Huffman:
         m=np.empty(codingParams.sfBands.nLines[iBand],np.int32)
         if region == REGION_BIGVALUE:
           for j in range(0,codingParams.sfBands.nLines[iBand],2):
-            #TODO: replace 16 with value pulled from table
-            #print bitAlloc
-            #print iBand
-            #print cur_table
+            #TODO: if there's an error and the symbol isn't found, we will
+            # overflow our bitstream
             mantissas = self.decodeMantissasBigValue(bitstream, 32, linbits, bitAlloc[iBand], self.reverse_tables_bigvalue[cur_table])
             m[j]=mantissas[0]
             if (j+1) < codingParams.sfBands.nLines[iBand]:
@@ -306,13 +301,13 @@ class Huffman:
         elif region == REGION_COUNT1:
           for j in range(0,codingParams.sfBands.nLines[iBand],4):
             mantissas = self.decodeMantissasCount1(bitstream, 32, self.reverse_tables_count1[cur_table])
-            #print mantissas
             m[j]=mantissas[0]
             for n in range(1,4):
               if (j+n) < codingParams.sfBands.nLines[iBand]:
                 m[j+n]=mantissas[n]
         mantissa[codingParams.sfBands.lowerLine[iBand]:(codingParams.sfBands.upperLine[iBand]+1)] = m
-        # done unpacking data (end loop over scale factor bands)
+
+    # done unpacking data (end loop over scale factor bands)
     for iBand in range(zero_region, codingParams.sfBands.nBands):
       m=np.empty(codingParams.sfBands.nLines[iBand],np.int32)
       bitAlloc.append(0)
@@ -320,9 +315,7 @@ class Huffman:
       for j in range(codingParams.sfBands.nLines[iBand]):
         m[j]=0
       mantissa[codingParams.sfBands.lowerLine[iBand]:(codingParams.sfBands.upperLine[iBand]+1)] = m
-    #print "decode"
-    #print scaleFactor, bitAlloc, overallScaleFactor
-    #print mantissa
+
     return overallScaleFactor, scaleFactor, bitAlloc, mantissa
 
   def encodeMantissasBigValue(self, mantissas, bitAlloc, bitstream, max_table_value, linbits, table):
@@ -345,7 +338,6 @@ class Huffman:
     symbol = (mantissas_abs[3]<<3) + (mantissas_abs[2]<<2) + (mantissas_abs[1]<<1) + mantissas_abs[0]
     code, code_bits = table[symbol]
     bitstream.WriteBits(code, code_bits)
-    #print code, code_bits
     for sign, mantissa_abs in zip(signs, mantissas_abs):
       if mantissa_abs > 0:
         bitstream.WriteBits(sign, 1)
@@ -358,25 +350,19 @@ class Huffman:
       bit = bitstream.ReadBits(1)
       code = (code<<1) | bit
       bits = i+1
-      #print code, bits
       if (code, bits) in reverse_table:
         symbol = reverse_table[(code, bits)]
         break
-      #code = code << 1
     if symbol == -1:
-      #print "FAILURE FINDING SYMBOL"
+      print "FAILURE FINDING SYMBOL"
       return None
-    #print symbol, (code, bits)
     values = [symbol & ((1<<BIGVALUE_MAX_BITS)-1), symbol >> BIGVALUE_MAX_BITS]
-    #print 'values', values
     results = []
     for value in values:
       if value == 15 and linbits > 0:
-        #print 'read linbits', linbits
         linbits_value = bitstream.ReadBits(linbits)
         value += linbits_value
       if value != 0:
-        #print 'read sign'
         sign = bitstream.ReadBits(1)
         if sign:
           value = value + (1<<(bitAlloc-1))
@@ -392,13 +378,10 @@ class Huffman:
       bit = bitstream.ReadBits(1)
       code = (code<<1) | bit
       bits = i+1
-      #print code, bits
       if (code, bits) in reverse_table:
         symbol = reverse_table[(code, bits)]
         break
-      #code = code << 1
     if symbol == -1:
-      #print "FAILURE FINDING SYMBOL (count1)"
       return None
 
     values = [symbol & 1, (symbol >> 1) & 1, (symbol >> 2) & 1, (symbol >> 3) & 1]

@@ -187,43 +187,21 @@ class PACFile(AudioFile):
             if pb.nBytes < nBytes:  raise "Only read a partial block of coded PACFile data"
             hdec = huffman.Huffman()
             lr=np.zeros(codingParams.sfBands.nBands)
-            #print "lr"
+
             for iBand in range(codingParams.hBand): #Will need to change 25 to hBand
                 lr[iBand]=pb.ReadBits(1)
-                #print lr[iBand]
 
             codingParams.lr=lr #store the information into codingParams
             ##############################this will work if hBand is set to maximum
             ####may need to add hband information
 
             theta=pb.ReadBits(8)# get out theta information
-            #print "theta", theta
             codingParams.theta=theta
             hBand=pb.ReadBits(5)
-            #print "hBand", hBand
             codingParams.hBand=hBand
 
             overallScaleFactor, scaleFactor, bitAlloc, mantissa = hdec.decodeMantissas(pb, codingParams)
-            """
-            # extract the data from the PackedBits object
-            overallScaleFactor = pb.ReadBits(codingParams.nScaleBits)  # overall scale factor
-            scaleFactor=[]
-            bitAlloc=[]
-            lr=[]                 #added for lr data
-            mantissa=np.zeros(codingParams.nMDCTLines,np.int32)  # start w/ all mantissas zero
-            for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to pack its data
-                ba = pb.ReadBits(codingParams.nMantSizeBits)
-                if ba: ba+=1  # no bit allocation of 1 so ba of 2 and up stored as one less
-                bitAlloc.append(ba)  # bit allocation for this band
-                scaleFactor.append(pb.ReadBits(codingParams.nScaleBits))  # scale factor for this band
-                if bitAlloc[iBand]:
-                    # if bits allocated, extract those mantissas and put in correct location in matnissa array
-                    m=np.empty(codingParams.sfBands.nLines[iBand],np.int32)
-                    for j in range(codingParams.sfBands.nLines[iBand]):
-                        m[j]=pb.ReadBits(bitAlloc[iBand])     # mantissas for this band (if bit allocation non-zero) and bit alloc <>1 so encoded as 1 lower than actual allocation
-                    mantissa[codingParams.sfBands.lowerLine[iBand]:(codingParams.sfBands.upperLine[iBand]+1)] = m
-            # done unpacking data (end loop over scale factor bands)
-            """
+
             bitAllocfin[iCh]=bitAlloc #####hack added
             scalefactorfin[iCh]=scaleFactor
             mantfin[iCh]=mantissa
@@ -328,56 +306,19 @@ class PACFile(AudioFile):
             ################################################
             pb = PackedBits()
             pb.Size(1)
-            #print "lr"
-            for iBand in range(codingParams.hBand):  ###########need to change 23 to hBan d keep it to 24 so it is divisible for number of bytes. will change later
-                #print int(codingParams.lr[iBand])
+            for iBand in range(codingParams.hBand):
                 pb.WriteBits(int(codingParams.lr[iBand]),1)
-            #print "Theta", codingParams.theta
             pb.WriteBits(int(codingParams.theta),8) #write in the theta
-            #print "hBand", codingParams.hBand
             pb.WriteBits(int(codingParams.hBand),5)
 
+
+            # Huffman encode the data
             henc = huffman.Huffman()
 
-            """
-            plt.figure()
-            plt.plot(mantissa[iCh].astype(int),'g')
-            plt.plot(codingParams.sfBands.lowerLine, bitAlloc[iCh],'r')
-            plt.show()
-            """
             pb = henc.encodeMantissas(pb, mantissa[iCh].astype(int),
                     scaleFactor[iCh].astype(int), codingParams.sfBands, codingParams, bitAlloc[iCh], overallScaleFactor)
             bitBudget -= pb.nBytes * 8
-            """
-            # now convert the bits to bytes (w/ extra one if spillover beyond byte boundary)
-            if nBytes%BYTESIZE==0:  nBytes /= BYTESIZE
-            else: nBytes = nBytes/BYTESIZE + 1
-            self.fp.write(pack("<L",int(nBytes))) # stores size as a little-endian unsigned long
 
-            # create a PackedBits object to hold the nBytes of data for this channel/block of coded data
-            pb = PackedBits()
-            pb.Size(nBytes)
-
-            # now pack the nBytes of data into the PackedBits object
-            pb.WriteBits(int(overallScaleFactor),codingParams.nScaleBits)  # overall scale factor
-            iMant=0  # index offset in mantissa array (because mantissas w/ zero bits are omitted)
-            for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to pack its data
-                ba = bitAlloc[iCh][iBand]
-                if ba: ba-=1  # if non-zero, store as one less (since no bit allocation of 1 bits/mantissa)
-                pb.WriteBits(int(ba),codingParams.nMantSizeBits)  # bit allocation for this band (written as one less if non-zero)
-                pb.WriteBits(scaleFactor[iCh][iBand],codingParams.nScaleBits)  # scale factor for this band (if bit allocation non-zero)
-                if bitAlloc[iCh][iBand]:
-                    for j in range(codingParams.sfBands.nLines[iBand]):
-                        pb.WriteBits(mantissa[iCh][iMant+j],bitAlloc[iCh][iBand])     # mantissas for this band (if bit allocation non-zero) and bit alloc <>1 so is 1 higher than the number
-                    iMant += codingParams.sfBands.nLines[iBand]  # add to mantissa offset if we passed mantissas for this band
-            # done packing (end loop over scale factor bands)
-
-            # CUSTOM DATA:
-            # < now can add in custom data if space allocated in nBytes above>
-            """
-            #############################need to allocate nBytes
-
-            #########################################
             self.fp.write(pack("<L",int(pb.nBytes))) # stores size as a little-endian unsigned long
 
 
@@ -392,7 +333,6 @@ class PACFile(AudioFile):
                      codingParams, bitAlloc[1])
 
         self.remainder += max(0, bitBudget)
-        print self.remainder, bitBudget
 
         # end loop over channels, done writing coded data for all channels
         return
@@ -449,7 +389,6 @@ class PACFile(AudioFile):
         sorted_symbols = sorted_symbols[::-1]
         if self.huffman_training.total_symbols_bigvalue > 0:
             symbol_prob = [[float(y)/self.huffman_training.total_symbols_bigvalue, x] for x, y in sorted_symbols]
-            print symbol_prob
             tree = huffman.buildTree(symbol_prob)
             huffman.saveTree(tree, self.GetNumberedFilename('bigvalue'))
 

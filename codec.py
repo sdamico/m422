@@ -187,11 +187,6 @@ def EncodeStereo(data,codingParams,remainder):
         SMR1[ii]=np.max(preSMR1[idxlower:idxhigh+1])
         SMR2[ii]=np.max(preSMR2[idxlower:idxhigh+1])
 
-    
-    #print SMR1
-
-        
-
     # allocate bits (altogether, before dividing the bit allocation scheme into 2 channels)
     bitBudget = codingParams.targetBitsPerSample*nsamp-(codingParams.nThetaBits+codingParams.hBand) #double the channels
     bitBudget -= codingParams.nScaleBits*(codingParams.sfBands.nBands +1)
@@ -219,18 +214,6 @@ def EncodeStereo(data,codingParams,remainder):
             mantissa[0][scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)] = vMantissa(ch1[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)],scaleFactor[0][iBand],codingParams.nScaleBits,bitAlloc[0][iBand])
             mantissa[1][scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)] = vMantissa(ch2[scaleFactorBands.lowerLine[iBand]:(scaleFactorBands.upperLine[iBand]+1)],scaleFactor[1][iBand],codingParams.nScaleBits,bitAlloc[1][iBand])
     overallScaleFactor = 0
-    """plt.figure()
-        plt.plot(lMask,'g')
-    plt.plot(totalMask1,'r')
-    plt.plot(preSMR1,'b')"""
-    """plt.plot(ch1*1000,'y')
-    plt.plot(ch2*1000,'g')
-    plt.plot(mantissa[0], 'r')
-    plt.plot(scaleFactorBands.lowerLine, SMR1, 'o')
-    plt.show()"""
-    """plt.figure()
-    plt.plot(ch1,'g')
-    plt.show()"""
 
     return (scaleFactor,bitAlloc,mantissa,overallScaleFactor,remainder,codingParams)
 
